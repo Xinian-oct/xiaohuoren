@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>小火人之家</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+body {
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+  background:#fdfaf3;
+  background-image:radial-gradient(#dbe7f3 1.6px, transparent 1.6px);
+  background-size:26px 26px;
+  min-height:100vh; display:flex; flex-direction:column; align-items:center;
+  padding:24px 16px 50px; color:#2c3e50; transition:filter .5s;
+}
+body.dimmed { filter:saturate(.55); }
+h1 { font-size:22px; color:#3a6ea5; letter-spacing:2px; }
+.sub { font-size:12.5px; color:#9aa7b5; margin:5px 0 4px; }
+.stage { min-height:250px; display:flex; align-items:flex-end; justify-content:center; position:relative; margin:10px 0 2px; cursor:pointer; }
+.flame-wrap { position:relative; transition:transform .2s; }
+.flame-wrap.jump { animation:jump .45s ease; }
+@keyframes jump { 0%{transform:translateY(0) scale(1)} 40%{transform:translateY(-16px) scale(1.06)} 100%{transform:translateY(0) scale(1)} }
+.flame { animation:breathe 2.6s ease-in-out infinite; transform-origin:50% 90%; }
+@keyframes breathe { 0%,100%{transform:scale(1)} 50%{transform:scale(1.045)} }
+.dim .flame { animation:none; filter:grayscale(.8) brightness(.82); opacity:.7; }
+.unlit .flame { animation:none; filter:grayscale(.9) brightness(.9); opacity:.55; }
+.bubble {
+  position:absolute; top:-8px; left:50%; transform:translate(-50%,-100%);
+  background:#fff; border:1.5px solid #a8c4de; color:#3a6ea5; font-size:13px;
+  padding:7px 13px; border-radius:14px; white-space:nowrap; opacity:0; transition:opacity .25s;
+  box-shadow:0 4px 12px rgba(58,110,165,.12); pointer-events:none;
+}
+.bubble.show { opacity:1; }
+.bubble::after { content:''; position:absolute; left:50%; bottom:-7px; transform:translateX(-50%); border:6px solid transparent; border-top-color:#a8c4de; border-bottom:0; }
+.dayline { font-size:26px; font-weight:700; color:#e07a3f; margin:6px 0 2px; }
+.dayline small { font-size:13px; color:#9aa7b5; font-weight:400; margin-left:6px; }
+.msg { font-size:14px; color:#7f8c9b; margin-bottom:14px; min-height:20px; }
+.firebtn {
+  border:none; border-radius:16px; padding:14px 34px; font-size:17px; cursor:pointer;
+  background:linear-gradient(135deg,#ff9a3d,#e07a3f); color:#fff; font-weight:600;
+  box-shadow:0 4px 14px rgba(224,122,63,.35); transition:transform .15s;
+}
+.firebtn:active { transform:scale(.96); }
+.firebtn.done { background:#cfd8e3; box-shadow:none; cursor:default; }
+.toast {
+  margin-top:14px; background:#fff8e8; border:1.5px solid #f0d9a8; color:#b0802a;
+  padding:9px 16px; border-radius:12px; font-size:14px; display:none;
+}
+.notebox { width:min(420px,92vw); margin-top:22px; background:#fff; border:1.6px solid #cfe0ef; border-radius:16px; padding:14px; }
+.notebox h3 { font-size:14px; color:#3a6ea5; margin-bottom:8px; }
+.notebox textarea {
+  width:100%; border:1.3px solid #d7e3ee; border-radius:10px; padding:9px 11px; font-size:14px;
+  font-family:inherit; resize:none; height:58px; outline:none; background:#fbfdff;
+}
+.notebox textarea:focus { border-color:#3a6ea5; }
+.row { display:flex; gap:8px; margin-top:9px; align-items:center; }
+.sbtn { border:1.4px solid #a8c4de; background:#fff; color:#3a6ea5; border-radius:10px; padding:7px 15px; font-size:13px; cursor:pointer; }
+.nameinput { border:1.3px solid #d7e3ee; border-radius:10px; padding:7px 11px; font-size:13px; width:130px; outline:none; background:#fbfdff; }
+.cal { width:min(420px,92vw); margin-top:14px; background:#fff; border:1.6px solid #cfe0ef; border-radius:16px; padding:14px; display:none; }
+.cal.open { display:block; }
+.cal h3 { font-size:14px; color:#3a6ea5; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; }
+.grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+.grid div { text-align:center; font-size:13px; padding:6px 0; border-radius:8px; cursor:default; color:#5c6b7a; }
+.grid .head { color:#a8b8c8; font-size:12px; }
+.grid .hasnote { background:#eaf3fb; color:#3a6ea5; font-weight:600; cursor:pointer; }
+.grid .today { outline:1.6px solid #e07a3f; color:#e07a3f; font-weight:700; border-radius:8px; }
+.shownote { margin-top:10px; font-size:13px; color:#7f8c9b; background:#f6f9fc; border-radius:10px; padding:9px 12px; display:none; }
+.shownote b { color:#3a6ea5; }
+footer { margin-top:28px; font-size:11.5px; color:#b7c3cf; }
+.best { font-size:12px; color:#a3b2c0; margin-top:6px; }
+</style>
+</head>
+<body>
+<h1>🏠 小火人之家</h1>
+<div class="sub">这是 <span id="fname">小火苗</span> 的家 · by 年年 &amp; Silas</div>
+
+<div class="stage" id="stage">
+  <div class="flame-wrap" id="flamewrap">
+    <div class="bubble" id="bubble"></div>
+    <svg class="flame" id="flameSvg" width="150" height="190" viewBox="0 0 100 130">
+      <defs>
+        <linearGradient id="fireGrad" x1="0" y1="1" x2="0" y2="0">
+          <stop offset="0%" stop-color="#ff6b35"/>
+          <stop offset="55%" stop-color="#ff9a3d"/>
+          <stop offset="100%" stop-color="#ffd97a"/>
+        </linearGradient>
+        <pattern id="dots" width="7" height="7" patternUnits="userSpaceOnUse">
+          <circle cx="3.5" cy="3.5" r="1.6" fill="#ffffff" opacity=".85"/>
+        </pattern>
+      </defs>
+      <g id="gbody">
+        <path id="fpath" d="M50 12 C58 30 76 38 76 62 A26 28 0 1 1 24 62 C24 38 42 30 50 12 Z" fill="url(#fireGrad)"/>
+        <ellipse id="finner" cx="50" cy="74" rx="12" ry="14" fill="#ffe9b3" opacity=".9"/>
+        <g id="gface" style="display:none">
+          <circle cx="43" cy="60" r="2.6" fill="#5a3b2a"/>
+          <circle cx="57" cy="60" r="2.6" fill="#5a3b2a"/>
+          <path d="M44 68 Q50 73 56 68" stroke="#5a3b2a" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <circle cx="37" cy="66" r="3" fill="#ffb3a0" opacity=".8"/>
+          <circle cx="63" cy="66" r="3" fill="#ffb3a0" opacity=".8"/>
+        </g>
+      </g>
+      <ellipse id="cushion" cx="50" cy="116" rx="34" ry="10" fill="#3a6ea5" style="display:none"/>
+      <ellipse id="cushionDots" cx="50" cy="116" rx="34" ry="10" fill="url(#dots)" style="display:none"/>
+    </svg>
+  </div>
+</div>
+
+<div class="dayline" id="dayline">第 0 天</div>
+<div class="msg" id="msg">点下面的按钮，点燃第一天的火吧</div>
+<button class="firebtn" id="firebtn">🔥 续火</button>
+<div class="toast" id="toast"></div>
+<div class="best" id="best"></div>
+
+<div class="notebox">
+  <h3>📝 今天的一句话</h3>
+  <textarea id="note" placeholder="今天发生了什么？（可留空）"></textarea>
+  <div class="row">
+    <button class="sbtn" id="savenote">存进日历</button>
+    <button class="sbtn" id="togglecal">📅 日历</button>
+  </div>
+</div>
+
+<div class="cal" id="cal">
+  <h3><span id="calTitle"></span><span style="font-size:12px;color:#a3b2c0;font-weight:400">● 有记录的日子</span></h3>
+  <div class="grid" id="grid"></div>
+  <div class="shownote" id="shownote"></div>
+</div>
+
+<div class="notebox" style="margin-top:14px;padding:11px 14px;">
+  <div class="row" style="margin-top:0;">
+    <span style="font-size:13px;color:#7f8c9b">给TA起个名：</span>
+    <input class="nameinput" id="nameinput" placeholder="小火苗">
+    <button class="sbtn" id="savename">保存</button>
+  </div>
+</div>
+
+<footer>小火人数据存在这台设备上 · 单机养成 · 离线可用 · by Silas</footer>
+
+<script>
+var KEY='xiaohuoren_v1';
+var state={days:0,last:null,best:0,notes:{},name:''};
+try{ var s=JSON.parse(localStorage.getItem(KEY)); if(s) state=s; }catch(e){}
+function save(){ try{ localStorage.setItem(KEY,JSON.stringify(state)); }catch(e){} }
+function today(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function diff(a,b){ return Math.round((new Date(b)-new Date(a))/86400000); }
+function status(){
+  if(!state.last) return 'fresh';
+  var d=diff(state.last,today());
+  if(d===0) return 'done';
+  if(d===1) return 'can';
+  return 'dim';
+}
+var happy=['今天也很想你','火火我呀，又精神了一点','蹭蹭你','明天也要来哦','有你在，火就一直亮着','刚才梦见了蓝波点垫子'];
+var dimLines=['我等你好久啦','还以为你忘记我了…','没关系，你来了就好','蔫了但没灭，你来了我就活'];
+var stages=[null,'火苗苗','火团子','火焰精灵'];
+function stageOf(d){ if(d>=30)return 3; if(d>=7)return 2; return 1; }
+
+function renderFlame(){
+  var d=state.days, st=status();
+  var wrap=document.getElementById('flamewrap');
+  var svg=document.getElementById('flameSvg');
+  var stage=st==='dim'?'dim':(d<=0?'unlit':'s'+stageOf(d));
+  wrap.className='flame-wrap '+stage;
+  var path=document.getElementById('fpath'), inner=document.getElementById('finner');
+  var face=document.getElementById('gface'), c1=document.getElementById('cushion'), c2=document.getElementById('cushionDots');
+  face.style.display='none'; c1.style.display='none'; c2.style.display='none';
+  svg.setAttribute('width','150'); svg.setAttribute('height','190');
+  if(stage==='s1'){
+    path.setAttribute('d','M50 22 C56 36 70 43 70 62 A20 21 0 1 1 30 62 C30 43 44 36 50 22 Z');
+    inner.setAttribute('cx','50'); inner.setAttribute('cy','72'); inner.setAttribute('rx','8'); inner.setAttribute('ry','9');
+  } else if(stage==='s2'){
+    path.setAttribute('d','M50 8 C60 28 80 36 80 62 A30 32 0 1 1 20 62 C20 36 40 28 50 8 Z');
+    inner.setAttribute('cx','50'); inner.setAttribute('cy','76'); inner.setAttribute('rx','12'); inner.setAttribute('ry','14');
+  } else if(stage==='s3'){
+    path.setAttribute('d','M50 4 C63 26 86 35 86 63 A36 40 0 1 1 14 63 C14 35 37 26 50 4 Z');
+    inner.setAttribute('cx','50'); inner.setAttribute('cy','80'); inner.setAttribute('rx','14'); inner.setAttribute('ry','16');
+    face.style.display=''; c1.style.display=''; c2.style.display='';
+    svg.setAttribute('width','170'); svg.setAttribute('height','200');
+  } else {
+    path.setAttribute('d','M50 30 C55 40 62 45 62 56 A12 13 0 1 1 38 56 C38 45 45 40 50 30 Z');
+    inner.setAttribute('cx','50'); inner.setAttribute('cy','62'); inner.setAttribute('rx','5'); inner.setAttribute('ry','6');
+  }
+}
+function render(){
+  renderFlame();
+  var st=status(), btn=document.getElementById('firebtn'), msg=document.getElementById('msg');
+  document.getElementById('dayline').innerHTML='第 '+state.days+' 天'+(state.best>0?'<small>最长纪录 '+state.best+' 天</small>':'');
+  document.getElementById('best').textContent='';
+  document.getElementById('fname').textContent=state.name||'小火苗';
+  if(st==='fresh'){ btn.textContent='🔥 点燃第一天的火'; msg.textContent='点下面的按钮，点燃第一天的火吧'; }
+  else if(st==='done'){ btn.textContent='✓ 今天的火已续上'; btn.className='firebtn done'; msg.textContent='明天再来，火就一直亮着'; }
+  else if(st==='can'){ btn.textContent='🔥 续火 · 第'+(state.days+1)+'天'; msg.textContent='火还亮着，今天也来见见它吧'; }
+  else { btn.textContent='🕯️ 重新点燃（从第1天开始）'; msg.textContent='它蔫了，但还在等你。从头再来，它不会怪你'; }
+  if(st!=='done') btn.className='firebtn';
+  document.getElementById('note').value=state.notes[today()]||'';
+  renderCal();
+}
+document.getElementById('firebtn').onclick=function(){
+  var st=status(); if(st==='done') return;
+  state.days = (st==='dim') ? 1 : state.days+1;
+  if(state.days>state.best) state.best=state.days;
+  state.last=today(); save();
+  var t=document.getElementById('toast');
+  if(state.days===7||state.days===30||state.days===100){
+    t.textContent='✨ 第'+state.days+'天：进化成'+stages[stageOf(state.days)]+'啦！';
+    t.style.display='block'; setTimeout(function(){t.style.display='none';},4000);
+  }
+  render();
+};
+var bTimer=null;
+document.getElementById('stage').onclick=function(){
+  var wrap=document.getElementById('flamewrap'), bub=document.getElementById('bubble');
+  wrap.classList.remove('jump'); void wrap.offsetWidth; wrap.classList.add('jump');
+  var st=status(), pool=(st==='dim')?dimLines:happy;
+  bub.textContent=pool[Math.floor(Math.random()*pool.length)];
+  bub.classList.add('show');
+  clearTimeout(bTimer); bTimer=setTimeout(function(){bub.classList.remove('show');},2400);
+};
+document.getElementById('savenote').onclick=function(){
+  var v=document.getElementById('note').value.trim();
+  if(v){ state.notes[today()]=v; } else { delete state.notes[today()]; }
+  save(); renderCal();
+  var b=document.getElementById('savenote'); b.textContent='已存 ✓'; setTimeout(function(){b.textContent='存进日历';},1500);
+};
+document.getElementById('savename').onclick=function(){
+  state.name=document.getElementById('nameinput').value.trim()||'小火苗';
+  save(); render();
+};
+document.getElementById('togglecal').onclick=function(){ document.getElementById('cal').classList.toggle('open'); renderCal(); };
+function renderCal(){
+  var d=new Date(), y=d.getFullYear(), m=d.getMonth();
+  document.getElementById('calTitle').textContent=y+'年'+(m+1)+'月';
+  var first=new Date(y,m,1).getDay(), days=new Date(y,m+1,0).getDate(), t=today();
+  var html='<div class="head">日</div><div class="head">一</div><div class="head">二</div><div class="head">三</div><div class="head">四</div><div class="head">五</div><div class="head">六</div>';
+  for(var i=0;i<first;i++) html+='<div></div>';
+  for(var day=1;day<=days;day++){
+    var ds=y+'-'+String(m+1).padStart(2,'0')+'-'+String(day).padStart(2,'0');
+    var cls='';
+    if(state.notes[ds]) cls+=' hasnote';
+    if(ds===t) cls+=' today';
+    html+='<div class="'+cls+'" data-d="'+ds+'">'+day+'</div>';
+  }
+  var g=document.getElementById('grid'); g.innerHTML=html;
+  Array.prototype.forEach.call(g.querySelectorAll('.hasnote'),function(el){
+    el.onclick=function(){
+      var n=document.getElementById('shownote');
+      n.style.display='block';
+      n.innerHTML='<b>'+el.getAttribute('data-d')+'</b> · '+(state.notes[el.getAttribute('data-d')]||'').replace(/</g,'&lt;');
+    };
+  });
+}
+render();
+</script>
+</body>
+</html>
